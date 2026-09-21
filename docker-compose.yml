@@ -1,0 +1,77 @@
+services:
+  users-service:
+    build:
+      context: .
+      dockerfile: services/users-service/Dockerfile
+    ports:
+      - "50051:50051"
+      - "3001:3001"
+    environment:
+      GRPC_PORT: "50051"
+      HTTP_PORT: "3001"
+
+  notifications-service:
+    build:
+      context: .
+      dockerfile: services/notifications-service/Dockerfile
+    ports:
+      - "50052:50052"
+      - "3002:3002"
+    environment:
+      GRPC_PORT: "50052"
+      HTTP_PORT: "3002"
+
+  orders-service:
+    build:
+      context: .
+      dockerfile: services/orders-service/Dockerfile
+    ports:
+      - "50053:50053"
+      - "3003:3003"
+    environment:
+      GRPC_PORT: "50053"
+      HTTP_PORT: "3003"
+      USERS_SERVICE_URL: "users-service:50051"
+      NOTIFICATIONS_SERVICE_URL: "notifications-service:50052"
+    depends_on:
+      - users-service
+      - notifications-service
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      HTTP_PORT: "3000"
+      USERS_SERVICE_URL: "users-service:50051"
+      ORDERS_SERVICE_URL: "orders-service:50053"
+    depends_on:
+      - users-service
+      - orders-service
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - api-gateway
+      - users-service
+      - notifications-service
+      - orders-service
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3300:3000"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_SECURITY_ADMIN_PASSWORD: "admin"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
