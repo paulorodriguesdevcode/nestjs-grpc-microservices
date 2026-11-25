@@ -6,7 +6,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
-    "start:dev": "ts-node src/main.ts"
+    "start:dev": "ts-node src/main.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --require ts-node/register --test \"src/**/*.spec.ts\"",
+    "test:cov": "node --require ts-node/register --test --experimental-test-coverage --test-coverage-exclude=\"src/**/*.spec.ts\" \"src/**/*.spec.ts\""
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.5",
@@ -20,6 +23,7 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@nestjs/testing": "^12.6.1",
     "@types/express": "^4.17.21",
     "@types/node": "^20.14.0",
     "ts-node": "^10.9.2",
