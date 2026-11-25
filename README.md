@@ -1,5 +1,7 @@
 # NestJS gRPC Microservices
 
+[![CI](https://github.com/paulorodriguesdevcode/nestjs-grpc-microservices/actions/workflows/ci.yml/badge.svg)](https://github.com/paulorodriguesdevcode/nestjs-grpc-microservices/actions/workflows/ci.yml)
+
 A small, complete microservices system: three NestJS services talking to each other over gRPC, sitting behind an HTTP API gateway, with structured logs and Prometheus/Grafana metrics — all runnable with one `docker compose up`. Built to demonstrate architecture decisions and trade-offs, not just working code.
 
 ## The scenario
@@ -53,6 +55,23 @@ curl -s -X POST localhost:3000/orders \
 
 Each service also runs standalone for local development (`cd services/<name> && npm install && npm run start:dev`); gRPC target URLs are configurable via env vars (`USERS_SERVICE_URL`, `ORDERS_SERVICE_URL`, `NOTIFICATIONS_SERVICE_URL`), defaulting to `localhost:<port>`.
 
+## Tests
+
+```bash
+npm run install:all   # npm ci in every service
+npm test              # unit tests for each service, then the end-to-end system test
+```
+
+Three layers, each answering a different question:
+
+| Layer | Where | What it proves |
+|---|---|---|
+| **Unit** | `services/*/src/**/*.spec.ts` | Domain logic and error translation inside one service: an unknown user is `NOT_FOUND`, any other `users-service` failure becomes `UNAVAILABLE`, a failed notification never rolls back an order, the notification failure band is exactly what the code says it is. Downstream gRPC clients are faked at the `ClientGrpc` boundary. |
+| **HTTP contract** | `services/api-gateway/src/app.http.spec.ts` | The gateway's promise to REST callers, using the real `AppModule`, `ValidationPipe` and `GrpcExceptionFilter`: invalid bodies are `400` and never reach gRPC, unknown fields are rejected, `NOT_FOUND` is `404`, `UNAVAILABLE` is `503`. |
+| **End-to-end** | `e2e/system.test.mjs` | The boundary itself. Spawns all four built services on free ports and drives them only through the gateway — real `.proto` files, real gRPC, `NOT_FOUND` crossing two hops, Prometheus counters actually incrementing. |
+
+Tests use Node's built-in runner (`node:test`) through `ts-node`. NestJS 12 ships as ESM only, which Jest can't load on Node 22 without an extra transform; the built-in runner can, with no test framework to keep in sync. CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs typecheck, build and unit tests with coverage per service, then the e2e suite and a `docker compose build`.
+
 ## Decisions and trade-offs
 
 ### Why gRPC for service-to-service calls, REST at the edge
@@ -92,6 +111,8 @@ monitoring/
   prometheus/              Scrape config
   grafana/provisioning/     Datasource + dashboard-as-code
 docker-compose.yml         Brings up all 4 services + Prometheus + Grafana
+e2e/                       End-to-end system test (all services, real gRPC)
+.github/workflows/         CI: typecheck, build, unit + coverage, e2e, docker build
 ```
 
 See [docs/architecture.md](docs/architecture.md) for request-flow and error-handling sequence diagrams.
