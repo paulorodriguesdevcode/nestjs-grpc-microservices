@@ -1,0 +1,16 @@
+{
+  "name": "nestjs-grpc-microservices",
+  "private": true,
+  "description": "Repo-level scripts. Each service under services/ is an independent npm project.",
+  "scripts": {
+    "install:all": "for s in services/*/; do (cd \"$s\" && npm ci) || exit 1; done",
+    "build:all": "for s in services/*/; do (cd \"$s\" && npm run build) || exit 1; done",
+    "typecheck:all": "for s in services/*/; do (cd \"$s\" && npm run typecheck) || exit 1; done",
+    "test:unit": "for s in services/*/; do (cd \"$s\" && npm test) || exit 1; done",
+    "test:e2e": "npm run build:all && node --test e2e/system.test.mjs",
+    "test": "npm run test:unit && npm run test:e2e"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
